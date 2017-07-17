@@ -13,28 +13,27 @@ import numpy as np
 Version 2
 Simulate run for a number of constants and find maximum separation squared.
 """
-# update_progress() : Displays or updates a console progress bar
-## Accepts a float between 0 and 1. Any int will be converted to a float.
-## A value under 0 represents a 'halt'.
-## A value at 1 or bigger represents 100%
+
 def walk(k,max_file):
     """
-    Performs the random walk. Creates the Matrix with the coefficients of the velocity profile created when
-    one of the spheres moves through the fluid.
+    Performs the random walk.
+    There are 4 possibilities of a walk, which are combinations of the binary states of hydrodynamic
+    interactions and thermal noise.
     """
-    if str.upper(hydro) in ("NO","N","NO HYDRO"):
+    # No hydrodynamic interaction and no noise
+    if str.upper(hydro) in ("NO","N","NO HYDRO") and str.upper(noise) in ("NO","N","NO NOISE"):
         for j in xrange(runs):
             out = open("Run{}_c{}".format(j,k), "w")
-
-            x = 0
-            y = init_separation
-            rseparation = x * x + y * y
-            out.write("{} {}\n".format(0, rseparation))
+            z = zinitial
+            x = xinitial
+            y = yinitial
+            rseparation = x * x + y * y + z*z
+            out.write("{} {} {} {}\n".format(0, x, y, z))
             maxr = rseparation
             tmax=0
             for i in xrange(steps):
                 # S is the stokeslet tensor
-                rseparation = x * x + y * y
+                rseparation = x * x + y * y +z*z
                 # Sxy = (3/(4*math.sqrt(distance_sq)))*(
                 # (x2-x1)*(y2 - y1)/
                 #              distance_sq)
@@ -48,110 +47,102 @@ def walk(k,max_file):
                 # random_array = np.random.randn(4)
                 xnew = x + k * y * time_step - (x * time_step) / (1 - rseparation)
                 ynew = y - (y * time_step) / (1 - rseparation)
+                znew = z - (z * time_step)/(1-rseparation)
                 # x2new = x2 + np.dot(Minv, random_array)[2] * np.sqrt(
                 #     constant * time_step)
                 # y2new = y2 + np.dot(Minv, random_array)[3] * np.sqrt(
                 #     constant * time_step)
-                x, y = xnew, ynew
+                x, y,z = xnew, ynew , znew
                 #Finding out largest separation squared
-                if maxr <= x*x + y*y:
-                    maxr = x*x+y*y
-                    tmax = i*time_step
-                out.write("{} {} {} {}\n".format(time_step * (i + 1), (x * x + y * y), x, y))
-
-
+                if maxr <= x*x + y*y + z*z and args.max:
+                    maxr = x*x+y*y +z*z
+                    tmax = (i+1)*time_step
+                out.write("{} {} {} {}\n".format(time_step * (i + 1),x, y,z))
 
             max_file.write("{} {} {}\n".format(k,maxr/(init_separation**2),tmax))
             update_progress(j / (runs))
             out.close()
-    elif str.upper(hydro) in ("YES","Y","HYDRO") :
+
+    # Hydrodynamic interactions but not noise
+    elif str.upper(hydro) in ("YES","Y","HYDRO") and str.upper(noise) in ("NO","N","NO NOISE"):
         for j in xrange(runs):
             out = open("Run{}_c{}".format(j, k), "w")
-
-            x = 0
-            y = init_separation
-            rseparation = x * x + y * y
-            out.write("{} {} {} {}\n".format(0, rseparation,x,y))
+            z = zinitial
+            x = xinitial
+            y = yinitial
+            rseparation = x * x + y * y + z*z
+            out.write("{} {} {} {}\n".format(0, x, y, z))
             maxr = rseparation
             tmax = 0
             for i in xrange(steps):
-                rseparation = x * x + y * y
+                rseparation = x * x + y * y +z*z
                 ynew = y + time_step*(1/(1+3/(4*math.sqrt(rseparation)*ra_ratio)))*(-y/(1-rseparation) +
-                    (1/(ra_ratio*math.sqrt(rseparation) + 7/4))*(-y*y*x*k/rseparation +
-                    (x*x*x +x*y*y)/((1-rseparation)*rseparation)))
+                    (1/(ra_ratio*math.sqrt(rseparation)*(4/3) + 2))*(-y*y*x*k/rseparation +
+                    (y*y*y + y*x*x + y*z*z)/((1-rseparation)*rseparation)))
 
                 xnew = x + time_step * (1 / (1 + 3 / (4 * math.sqrt(rseparation) * ra_ratio))) * (k*y
-                -x / (1 - rseparation) +(1 / (ra_ratio * math.sqrt(rseparation) + 7 / 4)) * (-y * x * x * k / rseparation
-                + (x * x * x + x * y * y) / ((1 - rseparation) * rseparation)))
-                x, y = xnew, ynew
+                -x / (1 - rseparation) +(1 / (ra_ratio * math.sqrt(rseparation)*(4/3) + 2)) * (-y * x * x * k / rseparation
+                + (x * x * x + x * y * y + x*z*z) / ((1 - rseparation) * rseparation)))
+
+                znew = z + time_step * (1 / (1 + 3 / (4 * math.sqrt(rseparation) * ra_ratio))) * (
+                        -z / (1 - rseparation) +(1 / (ra_ratio * math.sqrt(rseparation) * (4 / 3) + 2)) * (-z*y*x*k/rseparation +
+                        (z*y*y + z*x*x + z*z*z) / ((1 - rseparation) * rseparation)))
+                x, y, z = xnew, ynew, znew
                 # Finding out largest separation squared
-                if maxr <= x * x + y * y:
-                    maxr = x * x + y * y
-                    tmax = i * time_step
-                out.write("{} {} {} {}\n".format(time_step * (i + 1), (x * x + y * y), x, y))
-            max_file.write("{} {} {}\n".format(k, maxr / (init_separation ** 2), tmax))
+                if maxr <= x * x + y * y + z*z and args.max:
+                    maxr = x * x + y * y +z*z
+                    tmax = (i+1) * time_step
+                out.write("{} {} {} {}\n".format(time_step * (i + 1), x, y, z))
+            if args.max:
+                max_file.write("{} {} {}\n".format(k, maxr / (init_separation ** 2), tmax))
             update_progress(j / (runs))
             out.close()
 
+    elif str.upper(hydro) in ("NO","N","NO HYDRO") and str.upper(noise) in ("YES","Y","NOISE"):
+        pass
 
-def update_progress(progress):
-    barLength = 10  # Modify this to change the length of the progress bar
-    status = ""
-    if isinstance(progress, int):
-        progress = float(progress)
-    if not isinstance(progress, float):
-        progress = 0
-        status = "error: progress var must be float\r\n"
-    if progress < 0:
-        progress = 0
-        status = "Halt...\r\n"
-    if progress >= 1:
-        progress = 1
-        status = "Done...\r\n"
-    block = int(round(barLength * progress))
-    text = "\rPercent: [{0}] {1}% {2}".format("#" * block + "-" * (barLength - block), progress * 100, status)
-    sys.stdout.write(text)
-    sys.stdout.flush()
+    elif str.upper(hydro) in ("YES","Y","HYDRO") and str.upper(noise) in ("YES","Y","NOISE"):
+        pass
+
 
 
 def analyse():
-    '''
-    To initialise the program pass the following arguments after the name of the .py file
-    
-    steps: Number of steps the random walk will take
-    runs: How many times the walk will be carried out
-    constant: Constant used which is equal to kT/6pi*viscocity*radius
-    time step: How big of a time step the algorithm will take
-    repeats: How many times will the program run (Used because there is a limitation on the size of an array)
-    initial separation: The initial separation of the two spheres
-    '''
+    """
+    This function goes to the folder of the previously run simulation, and averages over
+    all the runs (which, because of thermal noise, are different). It writes the mean
+    squared separation and mean separation of each constant simulated in a file. It also
+    creates a files with the maximum separation of every constant and at which time it occured
+    """
 
-    os.chdir(
-        "Max_Separation_constants:{}-{}_numc:{}_hydro:{}_steps:{}_ts:{}_ra{}_noise{}".format(constant[0], constant[-1],
-        len(constant), hydro,steps, time_step, ra_ratio,noise))
-    for j in constant:
+    os.chdir("Shear_constants:{}-{}_numc:{}_hydro:{}_steps:{}_ts:{}_ra{}_noise{}".format(constant[0],
+    constant[-1],len(constant),hydro, steps,time_step, ra_ratio,noise))
+    max_file = open("AMax_File_con"
+                    ":{}-{}_numc:{}_h{}_s{}_ts{}_ra{}_n{}".format(
+        constant[0], constant[-1], len(constant), hydro, steps, time_step, ra_ratio, noise), "w")
+    max_file.write("#Constant, Maxseparation over initial separation, time of max separation\n")
+
+    for v in constant:
         #Rfile = open(os.getcwd() + "/Results.out", "a")
 
-        out = open("MSS_{}_{}_{}_{}_{}_{}.out".format(j,hydro, steps,time_step,ra_ratio,noise), "w")
-        nout = open("MS_{}_{}_{}_{}_{}_{}.out".format(j,hydro, steps,time_step,ra_ratio,noise), "w")
-        ssq = 0
-        s = 0
-        # run_files = ["Run{}".format(x) for x in range(runs)]
-        # filedata = {run: open(run, "r") for run in run_files}
-        # filedata2 = {run: open(run, "r") for run in run_files}
+        out = open("MSS_{}_{}_{}_{}_{}_{}.out".format(v,hydro, steps,time_step,ra_ratio,noise), "w")
+        nout = open("MS_{}_{}_{}_{}_{}_{}.out".format(v,hydro, steps,time_step,ra_ratio,noise), "w")
+
         #The following way of reading files is because of a limitation
         #in the number of files a computer can have open at the same time
-        thousands_of_runs = int(round(runs / 1000))
+        thousands_of_runs = int(math.ceil(runs / 1000))
         ms_list = []
         mss_list = []
         # Reads every thousand runs of a simulation
         for k in range(thousands_of_runs):
             # Opens the first 1000 runs in a dictionary, then opens the next 1000 and so on.
-            filedata = {i: open("Run{}_c{}".format(i,j), "r") for i in xrange(k * 1000, min(runs, (k + 1) * 1000))}
+            filedata = {i: open("Run{}_c{}".format(i,v), "r") for i in xrange(k * 1000, min(runs, (k + 1) * 1000))}
             # Mean separation and Mean square separation lists that contain temporary files
             # with the respective values for every thousand runs. They are deleted afterwards
             ms_list.append(open("ms_{}th_thousand.tmp".format(k), "w"))
             mss_list.append(open("mss_{}th_thousand.tmp".format(k), "w"))
+
+            # Adding squared separation and separation together
+            # to average noise
             for lines in xrange(steps + 1):
                 s = 0
                 ssq = 0
@@ -160,24 +151,35 @@ def analyse():
                     token = str.split(file.readline())
                     # This convenion will most likely change in the 3rd version of the program
                     t = float(token[0])
-                    rsepparation = float(token[1])
-                    #x = float(token[2])
-                    #y = float(token[3])
+                    x = float(token[1])
+                    y = float(token[2])
+                    z = float(token[3])
+                    rsepparation = x*x + y*y + z*z
 
                     s += rsepparation
                     ssq += math.sqrt(rsepparation)
                 mss_list[k].write("{} {}\n".format(t, s / runs))
                 ms_list[k].write("{} {}\n".format(t, (ssq / runs)))
-                update_progress(j / (steps))
+                update_progress(lines / (steps))
             for fruns in filedata.values():
                 fruns.close()
             ms_list[k].close()
             mss_list[k].close()
             ms_list[k] = open("ms_{}th_thousand.tmp".format(k), "r")
             mss_list[k] = open("mss_{}th_thousand.tmp".format(k), "r")
+
+        # This loop goes through the temporary file in ms_list and mss_list and finds the
+        # largest sepparation. It also finds the mean separation and separation squared if
+        # the number of runs was more than 1000. If its under 1000 runs then this loop will
+        # slow down the computation by a bit.
+        # ~~~~~~~~~ NOTE: If computation time is an issue then modify this ~~~~~~~~~~~~~~~~~~~~~~~~~~
+        print "~~~~~~~Merging and finding Max value~~~~~~~~~"
+        maxr = 0
+        tmax = 0
         for j in xrange(steps + 1):
             mean_mss = 0
             mean_ms = 0
+
             for k in range(thousands_of_runs):
                 mstoken = str.split(ms_list[k].readline())
                 msstoken = str.split(mss_list[k].readline())
@@ -186,8 +188,16 @@ def analyse():
                 msn = float(mstoken[1])
                 mean_mss += mssn
                 mean_ms += msn
+
             out.write("{} {}\n".format(t, mean_mss))
             nout.write("{} {}\n".format(t, mean_ms))
+            if maxr <= mean_mss:
+                maxr = mean_mss
+                tmax = t
+        # Max separation squared over initial separation squared is stored in a max file for
+        # every constant
+        # The loop deletes the unnecessary temporary files
+        max_file.write("{} {} {}\n".format(v, maxr / (init_separation ** 2), tmax))
         for k in range(thousands_of_runs):
             os.remove(mss_list[k].name)
             os.remove(ms_list[k].name)
@@ -225,47 +235,68 @@ def simulate():
     For version 2 all simulations are created in a single folder but separate files.
     :return:
     """
-    if args.max == False:
 
-        for j in constant:
-            try:
-                os.mkdir(
-                    "Shear_Walk hydro: {} init_sep: {} constant: {} time_step: {} steps: {} runs: {}".format(hydro,
-                            init_separation,j,time_step,steps,runs))
-            except OSError, e:
-                if e.errno != 17:
-                    raise
-            os.chdir("Shear_Walk hydro: {} init_sep: {} constant: {} time_step: {} steps: {} runs: {}".format(hydro,
-                            init_separation,j,time_step,steps,runs))
-            #walk(j)
 
     #This code simulates the walk of the polymer and stores the max separation in a file
-    elif args.max == True:
-        try:
-            os.mkdir("Max_Separation_constants:{}-{}_numc:{}_hydro:{}_steps:{}_ts:{}_ra{}_noise{}".format(constant[0],constant[-1],
-            len(constant),hydro,steps,time_step,ra_ratio,noise))
-        except OSError, e:
-            if e.errno != 17:
-                raise
-        os.chdir("Max_Separation_constants:{}-{}_numc:{}_hydro:{}_steps:{}_ts:{}_ra{}_noise{}".format(constant[0],constant[-1],
-            len(constant),hydro,steps,time_step,ra_ratio,noise))
+
+    try:
+        os.mkdir("Shear_constants:{}-{}_numc:{}_hydro:{}_steps:{}_ts:{}_ra{}_noise{}".format(constant[0],constant[-1],
+        len(constant),hydro,steps,time_step,ra_ratio,noise))
+    except OSError as e:
+        if e.errno != 17:
+            raise
+    os.chdir("Shear_constants:{}-{}_numc:{}_hydro:{}_steps:{}_ts:{}_ra{}_noise{}".format(constant[0],constant[-1],
+        len(constant),hydro,steps,time_step,ra_ratio,noise))
+    if args.max:
         max_file = open("Max_File_con"
                         ":{}-{}_numc:{}_h{}_s{}_ts{}_ra{}_n{}".format(
             constant[0],constant[-1],len(constant),hydro,steps,time_step,ra_ratio,noise),"w")
         max_file.write("#Constant, Maxseparation over initial separation, time of max separation\n")
-        for n,j in enumerate(constant):
+    else:
+        max_file = None
+    for n,j in enumerate(constant):
 
-            walk(j,max_file)
-            print("wi number {} done, {} left".format(j,len(constant)-n))
+        walk(j,max_file)
+        print("wi number {} done, {} left".format(j,len(constant)-n))
 
+def update_progress(progress):
+    barLength = 10  # Modify this to change the length of the progress bar
+    status = ""
+    if isinstance(progress, int):
+        progress = float(progress)
+    if not isinstance(progress, float):
+        progress = 0
+        status = "error: progress var must be float\r\n"
+    if progress < 0:
+        progress = 0
+        status = "Halt...\r\n"
+    if progress >= 1:
+        progress = 1
+        status = "Done...\r\n"
+    block = int(round(barLength * progress))
+    text = "\rPercent: [{0}] {1}% {2}".format("#" * block + "-" * (barLength - block), progress * 100, status)
+    sys.stdout.write(text)
+    sys.stdout.flush()
 
 if __name__ == "__main__":
-
+    """
+    Program gets variables from config file. 
+    To run the program, arguments have to be passed while initialising it in the form of flags.
+    The -walk argument runs the random walk simulation using the parameters of the config file
+    The -analyse argument finds the folder that matches the parameters of the config file
+    and subsequently runs through the files to produce a mean separation squared and max separation
+    files for every constant.
+    The -max argument is used only when there is no noise in the simulation so as to avoid running
+    the computationally expensive -analyse method 
+    """
     steps = int(config.steps)
     runs = int(config.runs)
     constant = config.constant
     time_step = float(config.time_step)
-    init_separation = float(config.init_separation)
+    yinitial= float(config.yinitial)
+    xinitial = float(config.xinitial)
+    zinitial = float(config.zinitial)
+    init_separation = math.sqrt(xinitial**2 + yinitial**2 + zinitial**2)
     hydro = str(config.hydro)
     ra_ratio = float(config.ra_ratio)
     noise = str(config.noise)
