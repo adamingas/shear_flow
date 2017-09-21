@@ -114,19 +114,18 @@ def walk(k,max_file):
                 rseparation = x * x + y * y +z*z
                 rvector = np.array([x,y,z])
                 #Matrix of stokeslet is created
-                Mxx = 1- 3/(4*rseparation * ra_ratio)*(1 + x*x/rseparation**2)
-                Mxy = - 3/(4*rseparation * ra_ratio)*(x*y/rseparation**2)
-                Mxz = - 3/(4*rseparation * ra_ratio)*(x*z/rseparation**2)
-                Myy = 1- 3/(4*rseparation * ra_ratio)*(1 + y*y/rseparation**2)
-                Myz = - 3/(4*rseparation * ra_ratio)*(y*z/rseparation**2)
-                Mzz = 1- 3/(4*rseparation * ra_ratio)*(1 + z*z/rseparation**2)
-                Mmatrix = np.array([[Mxx, Mxy,Mxz],[Mxy,Myy,Myz]],[Mxz,Myz,Mzz])
-
+                Mxx = 1- (3/(4*math.sqrt(rseparation) * ra_ratio))*(1 + x*x/rseparation)
+                Mxy = - 3/(4*math.sqrt(rseparation) * ra_ratio)*(x*y/rseparation)
+                Mxz = - 3/(4*math.sqrt(rseparation) * ra_ratio)*(x*z/rseparation)
+                Myy = 1- (3/(4*math.sqrt(rseparation) * ra_ratio))*(1 + y*y/rseparation)
+                Myz = - 3/(4*math.sqrt(rseparation) * ra_ratio)*(y*z/rseparation)
+                Mzz = 1- 3/(4*math.sqrt(rseparation) * ra_ratio)*(1 + z*z/rseparation)
+                Mmatrix = np.array([[Mxx, Mxy,Mxz],[Mxy,Myy,Myz],[Mxz,Myz,Mzz]])
                 noise_vector = noise_producer(Mmatrix)
-                xnew = x + k*y*time_step - time_step*Mmatrix[0].dot(rvector)/(1-rseparation**2) + noise_vector[0]
-                ynew = y - time_step * Mmatrix[1].dot(rvector) / (1 - rseparation ** 2) + \
+                xnew = x + k*y*time_step - time_step*Mmatrix[0].dot(rvector)/(1-rseparation) + noise_vector[0]
+                ynew = y - time_step * Mmatrix[1].dot(rvector) / (1 - rseparation) + \
                        noise_vector[1]
-                znew = z - time_step * Mmatrix[2].dot(rvector) / (1 - rseparation ** 2) + \
+                znew = z - time_step * Mmatrix[2].dot(rvector) / (1 - rseparation) + \
                        noise_vector[2]
                 x,y,z = xnew,ynew,znew
                 out.write("{} {} {} {}\n".format(time_step * (i + 1), x, y, z))
@@ -141,6 +140,8 @@ def noise_producer(matrix):
     """
     randgaussnumbers = math.sqrt(chi* time_step)*np.random.randn(3)
     psi1 = math.sqrt(matrix[0,0])*randgaussnumbers[0]
+
+    print (matrix[0,0]*matrix[1,1] -matrix[0,1]**2)
     psi2 = matrix[0,1]/math.sqrt(matrix[0,0])*randgaussnumbers[0] +(
             (math.sqrt(matrix[0,0]*matrix[1,1] -matrix[0,1]**2)/matrix[0,0])*randgaussnumbers[1] )
     psi3 = (matrix[0,2]/math.sqrt(matrix[0,0])) *randgaussnumbers[0] +(

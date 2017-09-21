@@ -1,8 +1,8 @@
 import numpy as np
 hydro = "yes" #yes or no
-noise = "no" #yes or no
-steps = 10000
-runs = 1
+noise = "yes" #yes or no
+steps = 100
+runs = 10
 constant = np.linspace(0,5,10).tolist()
 time_step = 0.001
 yinitial = 0.1
