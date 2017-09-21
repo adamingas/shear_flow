@@ -8,5 +8,6 @@ time_step = 0.001
 yinitial = 0.1
 xinitial = 0
 zinitial = 0
-ra_ratio =  10
+ra_ratio =  10 #Rmax over radius of sphere
+chi = 1 #Thermal energy over max potential energy of FENE spring
 

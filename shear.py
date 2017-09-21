@@ -19,6 +19,7 @@ def walk(k,max_file):
     Performs the random walk.
     There are 4 possibilities of a walk, which are combinations of the binary states of hydrodynamic
     interactions and thermal noise.
+    k is the weissenberg number
     """
     # No hydrodynamic interaction and no noise
     if str.upper(hydro) in ("NO","N","NO HYDRO") and str.upper(noise) in ("NO","N","NO NOISE"):
@@ -102,10 +103,54 @@ def walk(k,max_file):
         pass
 
     elif str.upper(hydro) in ("YES","Y","HYDRO") and str.upper(noise) in ("YES","Y","NOISE"):
-        pass
+        for j in xrange(runs):
+            out = open("Run{}_c{}".format(j, k), "w")
+            z = zinitial
+            x = xinitial
+            y = yinitial
+            out.write("{} {} {} {}\n".format(0, x, y, z))
 
+            for i in xrange(steps):
+                rseparation = x * x + y * y +z*z
+                rvector = np.array([x,y,z])
+                #Matrix of stokeslet is created
+                Mxx = 1- 3/(4*rseparation * ra_ratio)*(1 + x*x/rseparation**2)
+                Mxy = - 3/(4*rseparation * ra_ratio)*(x*y/rseparation**2)
+                Mxz = - 3/(4*rseparation * ra_ratio)*(x*z/rseparation**2)
+                Myy = 1- 3/(4*rseparation * ra_ratio)*(1 + y*y/rseparation**2)
+                Myz = - 3/(4*rseparation * ra_ratio)*(y*z/rseparation**2)
+                Mzz = 1- 3/(4*rseparation * ra_ratio)*(1 + z*z/rseparation**2)
+                Mmatrix = np.array([[Mxx, Mxy,Mxz],[Mxy,Myy,Myz]],[Mxz,Myz,Mzz])
 
+                noise_vector = noise_producer(Mmatrix)
+                xnew = x + k*y*time_step - time_step*Mmatrix[0].dot(rvector)/(1-rseparation**2) + noise_vector[0]
+                ynew = y - time_step * Mmatrix[1].dot(rvector) / (1 - rseparation ** 2) + \
+                       noise_vector[1]
+                znew = z - time_step * Mmatrix[2].dot(rvector) / (1 - rseparation ** 2) + \
+                       noise_vector[2]
+                x,y,z = xnew,ynew,znew
+                out.write("{} {} {} {}\n".format(time_step * (i + 1), x, y, z))
+            update_progress(j / (runs))
+            out.close()
 
+def noise_producer(matrix):
+    """
+    This method calculates the noise exerted on the 2 spheres and returns a 3 dimensional vector.
+    :param matrix: Stokeslet matrix
+    :return: Random noise vector
+    """
+    randgaussnumbers = math.sqrt(chi* time_step)*np.random.randn(3)
+    psi1 = math.sqrt(matrix[0,0])*randgaussnumbers[0]
+    psi2 = matrix[0,1]/math.sqrt(matrix[0,0])*randgaussnumbers[0] +(
+            (math.sqrt(matrix[0,0]*matrix[1,1] -matrix[0,1]**2)/matrix[0,0])*randgaussnumbers[1] )
+    psi3 = (matrix[0,2]/math.sqrt(matrix[0,0])) *randgaussnumbers[0] +(
+        (matrix[1,2]*matrix[0,0] - matrix[0,1]*matrix[0,2])/math.sqrt(matrix[1,1]*matrix[0,0] - matrix[0,1]**2))*(
+        randgaussnumbers[1]) +math.sqrt(
+        matrix[2,2] -(matrix[0,2]/math.sqrt(matrix[0,0]))**2 -
+        ((matrix[1, 2] * matrix[0, 0] - matrix[0, 1] * matrix[0, 2]) / math.sqrt(
+                matrix[1, 1] * matrix[0, 0] - matrix[0, 1] ** 2))**2) * randgaussnumbers[2]
+
+    return np.array([psi1,psi2,psi3])
 def analyse():
     """
     This function goes to the folder of the previously run simulation, and averages over
@@ -291,7 +336,7 @@ if __name__ == "__main__":
     """
     steps = int(config.steps)
     runs = int(config.runs)
-    constant = config.constant
+    constant = config.constant #Weissenberg numbers in a numpy array
     time_step = float(config.time_step)
     yinitial= float(config.yinitial)
     xinitial = float(config.xinitial)
@@ -300,21 +345,22 @@ if __name__ == "__main__":
     hydro = str(config.hydro)
     ra_ratio = float(config.ra_ratio)
     noise = str(config.noise)
+    chi = float(config.chi)
     parser = argparse.ArgumentParser(description="Program version 2"
-                                                 "The program simulates te motion of a polymer in shear flow.\n "
+                                                 "The program simulates the motion of a polymer in shear flow.\n "
                                                  "The model is of a finite extensibility non-linear elastic spring"
                                                  "(FENE).\n"
                                                  "Parameters of the simulation can be found in the config.py file.\n"
                                                  "\nVersion 1: Has no thermal fluctuations so analyser doesn't do anything\n"
-                                     "Version 2: There are hydrodynamic interactions between the two ends of the polymer chain.")
+                                     "Version 2: There are hydrodynamic interactions between the two ends of the polymer chain.\n"
+                                     "Version 3: There is thermal noise acting on the polymer")
     # parser.add_argument("echo", help="echo the string you use here")
     parser.add_argument("-a", "--analyse", help="Run analyser. For version 1 this does nothing (v1) since there "
                                                 "are no thermal fluctuations.",
                         action="store_true")
-    parser.add_argument("-w", "--walk", help="Simulate a walk with parameters of config.py file", action="store_true")
+    parser.add_argument("-w", "--walk", help="Simulate walks with parameters of config.py file", action="store_true")
 
-    parser.add_argument("-m", "--max", help="Simulate walks with parameters of config.py file in one folder"
-                                            "and store max separation squared", action="store_true")
+    parser.add_argument("-m", "--max", help="Store max separation squared in a separate file", action="store_true")
 
 
     args = parser.parse_args()
