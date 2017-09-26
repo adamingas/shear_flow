@@ -114,12 +114,12 @@ def walk(k,max_file):
                 rseparation = x * x + y * y +z*z
                 rvector = np.array([x,y,z])
                 #Matrix of stokeslet is created
-                Mxx = 1- (3/(4*math.sqrt(rseparation) * ra_ratio))*(1 + x*x/rseparation)
-                Mxy = - 3/(4*math.sqrt(rseparation) * ra_ratio)*(x*y/rseparation)
-                Mxz = - 3/(4*math.sqrt(rseparation) * ra_ratio)*(x*z/rseparation)
-                Myy = 1- (3/(4*math.sqrt(rseparation) * ra_ratio))*(1 + y*y/rseparation)
-                Myz = - 3/(4*math.sqrt(rseparation) * ra_ratio)*(y*z/rseparation)
-                Mzz = 1- 3/(4*math.sqrt(rseparation) * ra_ratio)*(1 + z*z/rseparation)
+                Mxx = 1- (3/(4 * ra_ratio))*((rseparation + 2*epsilon_squared) + x*x)/(rseparation + epsilon_squared)**(3/2)
+                Mxy = - 3/(4*math.sqrt(rseparation) * ra_ratio)*(x*y)/(rseparation + epsilon_squared)**(3/2)
+                Mxz = - 3/(4*math.sqrt(rseparation) * ra_ratio)*(x*z/(rseparation + epsilon_squared)**(3/2))
+                Myy = 1- (3/(4 * ra_ratio))*((rseparation + 2*epsilon_squared) + y*y)/(rseparation + epsilon_squared)**(3/2)
+                Myz = - 3/(4*math.sqrt(rseparation) * ra_ratio)*(y*z/(rseparation + epsilon_squared)**(3/2))
+                Mzz = 1- (3/(4 * ra_ratio))*((rseparation + 2*epsilon_squared) + z*z)/(rseparation + epsilon_squared)**(3/2)
                 Mmatrix = np.array([[Mxx, Mxy,Mxz],[Mxy,Myy,Myz],[Mxz,Myz,Mzz]])
                 noise_vector = noise_producer(Mmatrix)
                 xnew = x + k*y*time_step - time_step*Mmatrix[0].dot(rvector)/(1-rseparation) + noise_vector[0]
@@ -335,6 +335,7 @@ if __name__ == "__main__":
     The -max argument is used only when there is no noise in the simulation so as to avoid running
     the computationally expensive -analyse method 
     """
+    #Constants used in the simulation
     steps = int(config.steps)
     runs = int(config.runs)
     constant = config.constant #Weissenberg numbers in a numpy array
@@ -347,6 +348,7 @@ if __name__ == "__main__":
     ra_ratio = float(config.ra_ratio)
     noise = str(config.noise)
     chi = float(config.chi)
+    epsilon_squared = 4/(ra_ratio*ra_ratio)
     parser = argparse.ArgumentParser(description="Program version 2"
                                                  "The program simulates the motion of a polymer in shear flow.\n "
                                                  "The model is of a finite extensibility non-linear elastic spring"
