@@ -3,7 +3,6 @@ from __future__ import division
 import sys
 import os
 import math
-import time
 import linecache
 import config
 import argparse
@@ -14,7 +13,7 @@ Version 2
 Simulate run for a number of constants and find maximum separation squared.
 """
 
-def walk(k,max_file):
+def walk(k,max_file,chi_element):
     """
     Performs the random walk.
     There are 4 possibilities of a walk, which are combinations of the binary states of hydrodynamic
@@ -24,7 +23,7 @@ def walk(k,max_file):
     # No hydrodynamic interaction and no noise
     if str.upper(hydro) in ("NO","N","NO HYDRO") and str.upper(noise) in ("NO","N","NO NOISE"):
         for j in xrange(runs):
-            out = open("Run{}_c{}".format(j,k), "w")
+            out = open("Run{}_Wi{}_chi{}".format(j,k,chi_element), "w")
             z = zinitial
             x = xinitial
             y = yinitial
@@ -67,7 +66,7 @@ def walk(k,max_file):
     # Hydrodynamic interactions but not noise
     elif str.upper(hydro) in ("YES","Y","HYDRO") and str.upper(noise) in ("NO","N","NO NOISE"):
         for j in xrange(runs):
-            out = open("Run{}_c{}".format(j, k), "w")
+            out = open("Run{}_Wi{}_chi{}".format(j, k,chi_element), "w")
             z = zinitial
             x = xinitial
             y = yinitial
@@ -77,16 +76,16 @@ def walk(k,max_file):
             tmax = 0
             for i in xrange(steps):
                 rseparation = x * x + y * y +z*z
-                ynew = y + time_step*(1/(1+3/(4*math.sqrt(rseparation)*ra_ratio)))*(-y/(1-rseparation) +
-                    (1/(ra_ratio*math.sqrt(rseparation)*(4/3) + 2))*(-y*y*x*k/rseparation +
+                ynew = y + time_step*(1/(1+3/(4*math.sqrt(rseparation)*ar_ratio)))*(-y/(1-rseparation) +
+                    (1/(ar_ratio*math.sqrt(rseparation)*(4/3) + 2))*(-y*y*x*k/rseparation +
                     (y*y*y + y*x*x + y*z*z)/((1-rseparation)*rseparation)))
 
-                xnew = x + time_step * (1 / (1 + 3 / (4 * math.sqrt(rseparation) * ra_ratio))) * (k*y
-                -x / (1 - rseparation) +(1 / (ra_ratio * math.sqrt(rseparation)*(4/3) + 2)) * (-y * x * x * k / rseparation
+                xnew = x + time_step * (1 / (1 + 3 / (4 * math.sqrt(rseparation) * ar_ratio))) * (k*y
+                -x / (1 - rseparation) +(1 / (ar_ratio * math.sqrt(rseparation)*(4/3) + 2)) * (-y * x * x * k / rseparation
                 + (x * x * x + x * y * y + x*z*z) / ((1 - rseparation) * rseparation)))
 
-                znew = z + time_step * (1 / (1 + 3 / (4 * math.sqrt(rseparation) * ra_ratio))) * (
-                        -z / (1 - rseparation) +(1 / (ra_ratio * math.sqrt(rseparation) * (4 / 3) + 2)) * (-z*y*x*k/rseparation +
+                znew = z + time_step * (1 / (1 + 3 / (4 * math.sqrt(rseparation) * ar_ratio))) * (
+                        -z / (1 - rseparation) +(1 / (ar_ratio * math.sqrt(rseparation) * (4 / 3) + 2)) * (-z*y*x*k/rseparation +
                         (z*y*y + z*x*x + z*z*z) / ((1 - rseparation) * rseparation)))
                 x, y, z = xnew, ynew, znew
                 # Finding out largest separation squared
@@ -99,57 +98,53 @@ def walk(k,max_file):
             update_progress(j / (runs))
             out.close()
 
-    elif str.upper(hydro) in ("NO","N","NO HYDRO") and str.upper(noise) in ("YES","Y","NOISE"):
-        pass
-
-    elif str.upper(hydro) in ("YES","Y","HYDRO") and str.upper(noise) in ("YES","Y","NOISE"):
+    elif str.upper(hydro) in ("YES","Y","HYDRO","NO","N","NO HYDRO") and str.upper(noise) in ("YES","Y","NOISE"):
         for j in xrange(runs):
-            out = open("Run{}_c{}".format(j, k), "w")
+            out = open("Run{}_Wi{}_chi{}".format(j, k,chi_element), "w")
             z = zinitial
             x = xinitial
             y = yinitial
-            out.write("{} {} {} {}\n".format(0, x, y, z))
+            out.write("{} {} {} {} {}\n".format(0, x, y, z,math.sqrt(x*x+z*z+y*y)))
 
             for i in xrange(steps):
+
                 rseparation = x * x + y * y +z*z
                 rvector = np.array([x,y,z])
                 #Matrix of stokeslet is created
-                Mxx = 1- (3/(4 * ra_ratio))*((rseparation + 2*epsilon_squared) + x*x)/(rseparation + epsilon_squared)**(3/2)
-                Mxy = - 3/(4*math.sqrt(rseparation) * ra_ratio)*(x*y)/(rseparation + epsilon_squared)**(3/2)
-                Mxz = - 3/(4*math.sqrt(rseparation) * ra_ratio)*(x*z/(rseparation + epsilon_squared)**(3/2))
-                Myy = 1- (3/(4 * ra_ratio))*((rseparation + 2*epsilon_squared) + y*y)/(rseparation + epsilon_squared)**(3/2)
-                Myz = - 3/(4*math.sqrt(rseparation) * ra_ratio)*(y*z/(rseparation + epsilon_squared)**(3/2))
-                Mzz = 1- (3/(4 * ra_ratio))*((rseparation + 2*epsilon_squared) + z*z)/(rseparation + epsilon_squared)**(3/2)
+                Mxx = 1- (3*ar_ratio/4)*((rseparation + 2*epsilon_squared) + x*x)/(rseparation + epsilon_squared)**(1.5)
+                Mxy = - (3*ar_ratio/4)*x*y/(rseparation + epsilon_squared)**(1.5)
+                Mxz = - (3* ar_ratio/4)*x*z/(rseparation + epsilon_squared)**(1.5)
+                Myy = 1- (3* ar_ratio/4)*(rseparation + 2*epsilon_squared + y*y)/(rseparation + epsilon_squared)**(1.5)
+                Myz = - (3* ar_ratio/4)*y*z/(rseparation + epsilon_squared)**(1.5)
+                Mzz = 1- (3* ar_ratio/4)*((rseparation + 2*epsilon_squared) + z*z)/(rseparation + epsilon_squared)**(1.5)
                 Mmatrix = np.array([[Mxx, Mxy,Mxz],[Mxy,Myy,Myz],[Mxz,Myz,Mzz]])
-                noise_vector = noise_producer(Mmatrix)
+                noise_vector = noise_producer(Mmatrix, chi_element)
                 xnew = x + k*y*time_step - time_step*Mmatrix[0].dot(rvector)/(1-rseparation) + noise_vector[0]
-                ynew = y - time_step * Mmatrix[1].dot(rvector) / (1 - rseparation) + \
-                       noise_vector[1]
-                znew = z - time_step * Mmatrix[2].dot(rvector) / (1 - rseparation) + \
-                       noise_vector[2]
+                ynew = y - time_step * Mmatrix[1].dot(rvector) / (1 - rseparation) + noise_vector[1]
+                znew = z - time_step * Mmatrix[2].dot(rvector) / (1 - rseparation) + noise_vector[2]
                 x,y,z = xnew,ynew,znew
-                out.write("{} {} {} {}\n".format(time_step * (i + 1), x, y, z))
+                out.write("{} {} {} {} {}\n".format(time_step * (i + 1), x, y, z,math.sqrt(x*x+z*z+y*y)))
             update_progress(j / (runs))
             out.close()
 
-def noise_producer(matrix):
+def noise_producer(matrix,chi_element):
     """
     This method calculates the noise exerted on the 2 spheres and returns a 3 dimensional vector.
     :param matrix: Stokeslet matrix
     :return: Random noise vector
     """
-    randgaussnumbers = math.sqrt(chi* time_step)*np.random.randn(3)
-    psi1 = math.sqrt(matrix[0,0])*randgaussnumbers[0]
+    randgaussnumbers = np.random.normal(0,math.sqrt(chi_element* time_step),3)
+    s11 = math.sqrt(matrix[0,0])
+    s21 = matrix[0,1] / s11
+    s22 = math.sqrt(matrix[1,1] - s21 * s21)
+    s31 = matrix[0,2] / s11
+    s32 = (matrix[1,2] - s21 * s31) / s22
+    s33 = math.sqrt(matrix[2,2] - s31 * s31 - s32 * s32)
 
-    print (matrix[0,0]*matrix[1,1] -matrix[0,1]**2)
-    psi2 = matrix[0,1]/math.sqrt(matrix[0,0])*randgaussnumbers[0] +(
-            (math.sqrt(matrix[0,0]*matrix[1,1] -matrix[0,1]**2)/matrix[0,0])*randgaussnumbers[1] )
-    psi3 = (matrix[0,2]/math.sqrt(matrix[0,0])) *randgaussnumbers[0] +(
-        (matrix[1,2]*matrix[0,0] - matrix[0,1]*matrix[0,2])/math.sqrt(matrix[1,1]*matrix[0,0] - matrix[0,1]**2))*(
-        randgaussnumbers[1]) +math.sqrt(
-        matrix[2,2] -(matrix[0,2]/math.sqrt(matrix[0,0]))**2 -
-        ((matrix[1, 2] * matrix[0, 0] - matrix[0, 1] * matrix[0, 2]) / math.sqrt(
-                matrix[1, 1] * matrix[0, 0] - matrix[0, 1] ** 2))**2) * randgaussnumbers[2]
+    psi1 = s11*randgaussnumbers[0]
+
+    psi2 = (s21*randgaussnumbers[0]+ s22*randgaussnumbers[1])
+    psi3 =(s31*randgaussnumbers[0] + s32*randgaussnumbers[1] + s33*randgaussnumbers[2])
 
     return np.array([psi1,psi2,psi3])
 def analyse():
@@ -160,18 +155,18 @@ def analyse():
     creates a files with the maximum separation of every constant and at which time it occured
     """
 
-    os.chdir("Shear_constants:{}-{}_numc:{}_hydro:{}_steps:{}_ts:{}_ra{}_noise{}".format(constant[0],
-    constant[-1],len(constant),hydro, steps,time_step, ra_ratio,noise))
+    os.chdir("Shear_Wi:{}-{}_chi:{}-{}_hydro:{}_steps:{}_ts:{}_ra{}_noise{}".format(constant[0],constant[-1],
+        chi[0],chi[-1],hydro,steps,time_step,ar_ratio,noise))
     max_file = open("AMax_File_con"
                     ":{}-{}_numc:{}_h{}_s{}_ts{}_ra{}_n{}".format(
-        constant[0], constant[-1], len(constant), hydro, steps, time_step, ra_ratio, noise), "w")
+        constant[0], constant[-1], len(constant), hydro, steps, time_step, ar_ratio, noise), "w")
     max_file.write("#Constant, Maxseparation over initial separation, time of max separation\n")
 
     for v in constant:
         #Rfile = open(os.getcwd() + "/Results.out", "a")
 
-        out = open("MSS_{}_{}_{}_{}_{}_{}.out".format(v,hydro, steps,time_step,ra_ratio,noise), "w")
-        nout = open("MS_{}_{}_{}_{}_{}_{}.out".format(v,hydro, steps,time_step,ra_ratio,noise), "w")
+        out = open("MSS_{}_{}_{}_{}_{}_{}.out".format(v,hydro, steps,time_step,ar_ratio,noise), "w")
+        nout = open("MS_{}_{}_{}_{}_{}_{}.out".format(v,hydro, steps,time_step,ar_ratio,noise), "w")
 
         #The following way of reading files is because of a limitation
         #in the number of files a computer can have open at the same time
@@ -181,7 +176,7 @@ def analyse():
         # Reads every thousand runs of a simulation
         for k in range(thousands_of_runs):
             # Opens the first 1000 runs in a dictionary, then opens the next 1000 and so on.
-            filedata = {i: open("Run{}_c{}".format(i,v), "r") for i in xrange(k * 1000, min(runs, (k + 1) * 1000))}
+            filedata = {i: open("Run{}_Wi{}_chi{}".format(i,v,chi[0]), "r") for i in xrange(k * 1000, min(runs, (k + 1) * 1000))}
             # Mean separation and Mean square separation lists that contain temporary files
             # with the respective values for every thousand runs. They are deleted afterwards
             ms_list.append(open("ms_{}th_thousand.tmp".format(k), "w"))
@@ -192,7 +187,7 @@ def analyse():
             for lines in xrange(steps + 1):
                 s = 0
                 ssq = 0
-
+                totangle1 =0
                 for file in filedata.values():
                     token = str.split(file.readline())
                     # This convenion will most likely change in the 3rd version of the program
@@ -201,11 +196,12 @@ def analyse():
                     y = float(token[2])
                     z = float(token[3])
                     rsepparation = x*x + y*y + z*z
-
+                    angle1 = np.degrees(np.arccos(np.clip(np.dot(np.array([x,y,z]), np.array([1, 0, 0])) / math.sqrt(rsepparation), -1.0, 1.0)))
+                    totangle1 += angle1
                     s += rsepparation
                     ssq += math.sqrt(rsepparation)
                 mss_list[k].write("{} {}\n".format(t, s / runs))
-                ms_list[k].write("{} {}\n".format(t, (ssq / runs)))
+                ms_list[k].write("{} {} {}\n".format(t, (ssq / runs),totangle1/runs))
                 update_progress(lines / (steps))
             for fruns in filedata.values():
                 fruns.close()
@@ -225,32 +221,35 @@ def analyse():
         for j in xrange(steps + 1):
             mean_mss = 0
             mean_ms = 0
+            mean_angle =0
 
             for k in range(thousands_of_runs):
                 mstoken = str.split(ms_list[k].readline())
                 msstoken = str.split(mss_list[k].readline())
                 t = float(mstoken[0])
+                angle = float(mstoken[2])
+                mean_angle += angle
                 mssn = float(msstoken[1])
                 msn = float(mstoken[1])
                 mean_mss += mssn
                 mean_ms += msn
 
             out.write("{} {}\n".format(t, mean_mss))
-            nout.write("{} {}\n".format(t, mean_ms))
-            if maxr <= mean_mss:
-                maxr = mean_mss
-                tmax = t
+            nout.write("{} {} {}\n".format(t, mean_ms, mean_angle))
+        #    if maxr <= mean_mss:
+        #        maxr = mean_mss
+        #        tmax = t
         # Max separation squared over initial separation squared is stored in a max file for
         # every constant
         # The loop deletes the unnecessary temporary files
-        max_file.write("{} {} {}\n".format(v, maxr / (init_separation ** 2), tmax))
+        #max_file.write("{} {} {}\n".format(v, maxr / (init_separation ** 2), tmax))
         for k in range(thousands_of_runs):
             os.remove(mss_list[k].name)
             os.remove(ms_list[k].name)
         out.close()
         nout.close()
-        meansqsep = float(str.split(linecache.getline(out.name, steps + 1))[1])
-        meansep = float(str.split(linecache.getline(nout.name, steps + 1))[1])
+        #meansqsep = float(str.split(linecache.getline(out.name, steps + 1))[1])
+        #meansep = float(str.split(linecache.getline(nout.name, steps + 1))[1])
         #print("Mean squared separation over {} runs: {} ".format(runs, meansqsep))
         #print("Root Mean squared separation over {} runs: {} ".format(runs, math.sqrt(meansqsep)))
         #print ("Mean separation over {} runs : {}".format(runs, meansep))
@@ -273,7 +272,41 @@ def analyse():
         #     os.chdir("Max_Separation_constants:{}-{}_numc:{}".format(constant[0],constant[-1],len(constant)))
         #     max_file = open("Max_Separation_constants:{}-{}_numc:{}".format(constant[0],constant[-1],len(constant)),"w")
         #     for n,j in enumerate(constant):
+    os.chdir("..")
 
+def average_sepparation():
+    os.chdir("Shear_Wi:{}-{}_chi:{}-{}_hydro:{}_steps:{}_ts:{}_ra{}_noise{}".format(constant[0], constant[-1],
+    chi[0], chi[-1], hydro, steps,time_step, ar_ratio, noise))
+
+    for j,chi_element in enumerate(chi):
+        avsep_file = open(("Av.Sep_hydro:{}_chi:{}_Wi:{}-{}_numWi:{}").format(hydro, chi_element,
+                                                                constant[0],constant[-1],len(constant)),"w")
+
+        avangle_file = open(("Angle_hydro:{}_chi:{}_Wi:{}-{}_numWi:{}").format(hydro, chi_element,
+                                                                constant[0], constant[-1], len(constant)), "w")
+        for i,wi in enumerate(constant):
+            wisep_array = np.loadtxt("MS_{}_{}_{}_{}_{}_{}.out".format(wi,hydro, steps,time_step,ar_ratio,noise))
+            avsep_file.write("{} {}\n".format(wi,np.mean(wisep_array[500:,1])))
+            avangle_file.write("{} {}\n".format(wi,np.mean(wisep_array[500:,2])))
+
+
+            print("wi number {} done, {} left".format(wi, len(constant) - i - 1))
+        print("chi number {} done, {} left".format(chi_element, len(chi) -j-1))
+    os.chdir("..")
+
+def angle():
+    os.chdir("Shear_Wi:{}-{}_chi:{}-{}_hydro:{}_steps:{}_ts:{}_ra{}_noise{}".format(constant[0], constant[-1],
+    chi[0], chi[-1], hydro, steps,time_step, ar_ratio, noise))
+
+    for j,chi_element in enumerate(chi):
+        avsep_file = open(("Angle_hydro:{}_chi:{}_Wi:{}-{}_numWi:{}").format(hydro, chi_element,
+                                                                constant[0],constant[-1],len(constant)),"w")
+        for i,wi in enumerate(constant):
+            file_array = np.loadtxt("Run{}_Wi{}_chi{}".format(0, wi,chi_element))
+            angle_array = np.arccos(np.absolute(file_array[:,1])/file_array[:,-1])
+            avsep_file.write("{} {}\n".format(wi,np.mean(angle_array[500:])))
+            print("wi number {} done, {} left".format(wi, len(constant) - i - 1))
+        print("chi number {} done, {} left".format(chi_element, len(chi) -j-1))
 
 def simulate():
     """
@@ -281,29 +314,30 @@ def simulate():
     For version 2 all simulations are created in a single folder but separate files.
     :return:
     """
-
-
     #This code simulates the walk of the polymer and stores the max separation in a file
 
     try:
-        os.mkdir("Shear_constants:{}-{}_numc:{}_hydro:{}_steps:{}_ts:{}_ra{}_noise{}".format(constant[0],constant[-1],
-        len(constant),hydro,steps,time_step,ra_ratio,noise))
+        os.mkdir("Shear_Wi:{}-{}_chi:{}-{}_hydro:{}_steps:{}_ts:{}_ra{}_noise{}".format(constant[0],constant[-1],
+        chi[0],chi[-1],hydro,steps,time_step,ar_ratio,noise))
     except OSError as e:
         if e.errno != 17:
             raise
-    os.chdir("Shear_constants:{}-{}_numc:{}_hydro:{}_steps:{}_ts:{}_ra{}_noise{}".format(constant[0],constant[-1],
-        len(constant),hydro,steps,time_step,ra_ratio,noise))
+    os.chdir("Shear_Wi:{}-{}_chi:{}-{}_hydro:{}_steps:{}_ts:{}_ra{}_noise{}".format(constant[0],constant[-1],
+        chi[0],chi[-1],hydro,steps,time_step,ar_ratio,noise))
     if args.max:
         max_file = open("Max_File_con"
                         ":{}-{}_numc:{}_h{}_s{}_ts{}_ra{}_n{}".format(
-            constant[0],constant[-1],len(constant),hydro,steps,time_step,ra_ratio,noise),"w")
+            constant[0],constant[-1],len(constant),hydro,steps,time_step,ar_ratio,noise),"w")
         max_file.write("#Constant, Maxseparation over initial separation, time of max separation\n")
     else:
         max_file = None
-    for n,j in enumerate(constant):
+    for o,k in enumerate(chi):
+        for n,j in enumerate(constant):
 
-        walk(j,max_file)
-        print("wi number {} done, {} left".format(j,len(constant)-n))
+            walk(j,max_file,k)
+            print("wi number {} done, {} left".format(j,len(constant)-n -1))
+        print("chi number {} done, {} left".format(k, len(chi) -o-1))
+
 
 def update_progress(progress):
     barLength = 10  # Modify this to change the length of the progress bar
@@ -345,10 +379,10 @@ if __name__ == "__main__":
     zinitial = float(config.zinitial)
     init_separation = math.sqrt(xinitial**2 + yinitial**2 + zinitial**2)
     hydro = str(config.hydro)
-    ra_ratio = float(config.ra_ratio)
+    ar_ratio = float(config.ar_ratio)
     noise = str(config.noise)
-    chi = float(config.chi)
-    epsilon_squared = 4/(ra_ratio*ra_ratio)
+    chi = config.chi
+    epsilon_squared = 4*ar_ratio*ar_ratio
     parser = argparse.ArgumentParser(description="Program version 2"
                                                  "The program simulates the motion of a polymer in shear flow.\n "
                                                  "The model is of a finite extensibility non-linear elastic spring"
@@ -365,6 +399,9 @@ if __name__ == "__main__":
 
     parser.add_argument("-m", "--max", help="Store max separation squared in a separate file", action="store_true")
 
+    parser.add_argument("-av", "--average", help="Averages separation for each weisenberg number", action="store_true")
+
+    parser.add_argument("-an", "--angle", help="Averages angle between separation vector and x-axis for each weisenberg number", action="store_true")
 
     args = parser.parse_args()
     # print args.echo
@@ -372,3 +409,7 @@ if __name__ == "__main__":
         simulate()
     if args.analyse:
         analyse()
+    if args.average:
+        average_sepparation()
+    if args.angle:
+        angle()

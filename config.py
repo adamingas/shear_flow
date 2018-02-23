@@ -1,13 +1,16 @@
 import numpy as np
-hydro = "yes" #yes or no
+
 noise = "yes" #yes or no
-steps = 100
-runs = 10
-constant = np.linspace(0,5,10).tolist()
-time_step = 0.001
+steps = 100000
+runs = 2
+constant = np.linspace(0,10,21).tolist()
+time_step = 0.01
 yinitial = 0.1
 xinitial = 0
 zinitial = 0
-ra_ratio =  10 #Rmax over radius of sphere
-chi = 1 #Thermal energy over max potential energy of FENE spring
-
+ar_ratio =  0.1 #Rmax over radius of sphere
+chi = [10**(-3)] #Thermal energy over max potential energy of FENE spring
+if ar_ratio == 0:
+	hydro = "no"
+else:
+	hydro = "yes" 
