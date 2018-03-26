@@ -105,28 +105,43 @@ def walk(k,max_file,chi_element):
             x = xinitial
             y = yinitial
             out.write("{} {} {} {} {}\n".format(0, x, y, z,math.sqrt(x*x+z*z+y*y)))
-
+            rvectorn = np.array([x,y,z])
             for i in xrange(steps):
 
-                rseparation = x * x + y * y +z*z
-                rvector = np.array([x,y,z])
-                #Matrix of stokeslet is created
-                Mxx = 1- (3*ar_ratio/4)*((rseparation + 2*epsilon_squared) + x*x)/(rseparation + epsilon_squared)**(1.5)
-                Mxy = - (3*ar_ratio/4)*x*y/(rseparation + epsilon_squared)**(1.5)
-                Mxz = - (3* ar_ratio/4)*x*z/(rseparation + epsilon_squared)**(1.5)
-                Myy = 1- (3* ar_ratio/4)*(rseparation + 2*epsilon_squared + y*y)/(rseparation + epsilon_squared)**(1.5)
-                Myz = - (3* ar_ratio/4)*y*z/(rseparation + epsilon_squared)**(1.5)
-                Mzz = 1- (3* ar_ratio/4)*((rseparation + 2*epsilon_squared) + z*z)/(rseparation + epsilon_squared)**(1.5)
-                Mmatrix = np.array([[Mxx, Mxy,Mxz],[Mxy,Myy,Myz],[Mxz,Myz,Mzz]])
-                noise_vector = noise_producer(Mmatrix, chi_element)
-                xnew = x + k*y*time_step - time_step*Mmatrix[0].dot(rvector)/(1-rseparation) + noise_vector[0]
-                ynew = y - time_step * Mmatrix[1].dot(rvector) / (1 - rseparation) + noise_vector[1]
-                znew = z - time_step * Mmatrix[2].dot(rvector) / (1 - rseparation) + noise_vector[2]
-                x,y,z = xnew,ynew,znew
-                out.write("{} {} {} {} {}\n".format(time_step * (i + 1), x, y, z,math.sqrt(x*x+z*z+y*y)))
+                vector ,Mmatrix = function(rvectorn,k)
+                noise_vector = noise_producer(Mmatrix, chi_element/2)
+
+                rvectorinter = rvectorn + (time_step/2)*vector + noise_vector
+
+                vector, Mmatrix = function(rvectorinter, k)
+                noise_vector = noise_producer(Mmatrix, chi_element )
+                rvectorn = rvectorn + time_step*vector + noise_vector
+
+
+
+                out.write("{} {} {} {} {}\n".format(time_step * (i + 1), rvectorn[0], rvectorn[1], rvectorn[2],np.linalg.norm(rvectorn)))
             update_progress(j / (runs))
             out.close()
 
+
+def function(rvector,k):
+    rseparation = np.linalg.norm(rvector) ** 2
+    x = rvector[0]
+    y = rvector[1]
+    z = rvector[2]
+    # Matrix of stokeslet is created
+    Mxx = 1 - (3 * ar_ratio / 4) * ((rseparation + 2 * epsilon_squared) + x * x) / (rseparation + epsilon_squared) ** (
+    1.5)
+    Mxy = - (3 * ar_ratio / 4) * x * y / (rseparation + epsilon_squared) ** (1.5)
+    Mxz = - (3 * ar_ratio / 4) * x * z / (rseparation + epsilon_squared) ** (1.5)
+    Myy = 1 - (3 * ar_ratio / 4) * (rseparation + 2 * epsilon_squared + y * y) / (rseparation + epsilon_squared) ** (
+    1.5)
+    Myz = - (3 * ar_ratio / 4) * y * z / (rseparation + epsilon_squared) ** (1.5)
+    Mzz = 1 - (3 * ar_ratio / 4) * ((rseparation + 2 * epsilon_squared) + z * z) / (rseparation + epsilon_squared) ** (
+    1.5)
+    Mmatrix = np.array([[Mxx, Mxy, Mxz], [Mxy, Myy, Myz], [Mxz, Myz, Mzz]])
+    vector = (-Mmatrix.dot(rvector)/(1-rseparation)) + np.array([rvector[1]*k,0,0])
+    return vector,Mmatrix
 def noise_producer(matrix,chi_element):
     """
     This method calculates the noise exerted on the 2 spheres and returns a 3 dimensional vector.
@@ -308,6 +323,33 @@ def angle():
             print("wi number {} done, {} left".format(wi, len(constant) - i - 1))
         print("chi number {} done, {} left".format(chi_element, len(chi) -j-1))
 
+def distribution():
+    os.chdir("Shear_Wi:{}-{}_chi:{}-{}_hydro:{}_steps:{}_ts:{}_ra{}_noise{}".format(constant[0],constant[-1],
+        chi[0],chi[-1],hydro,steps,time_step,ar_ratio,noise))
+
+
+    for x in chi:
+        for w in d_constant:
+
+            comb_file = open("Comb.ext_Wi{}_chi{}_ts{}_step{}".format(w,x,time_step,steps),"w")
+            comb_angle = open("Comb.ang_Wi{}_chi{}_ts{}_step{}".format(w,x,time_step,steps),"w")
+
+            for i in range(runs):
+                file = np.loadtxt("Run{}_Wi{}_chi{}".format(i, w, x))
+                polymag1 = file[:,4]
+                polyvec1x = file[:,1]
+                angle1 = np.degrees(
+                    np.arccos(np.clip(polyvec1x / polymag1, -1.0, 1.0)))
+
+                comb_file.write("\n".join(map(str,polymag1)))
+                comb_file.write("\n")
+                comb_angle.write("\n".join(map(str, angle1)))
+                comb_angle.write("\n")
+            comb_file.close()
+            comb_angle.close()
+
+    os.chdir("..")
+
 def simulate():
     """
     For version 1 the creation of folder is inside the for loop.
@@ -383,6 +425,8 @@ if __name__ == "__main__":
     noise = str(config.noise)
     chi = config.chi
     epsilon_squared = 4*ar_ratio*ar_ratio
+    d_constant = config.d_constant
+
     parser = argparse.ArgumentParser(description="Program version 2"
                                                  "The program simulates the motion of a polymer in shear flow.\n "
                                                  "The model is of a finite extensibility non-linear elastic spring"
@@ -403,6 +447,8 @@ if __name__ == "__main__":
 
     parser.add_argument("-an", "--angle", help="Averages angle between separation vector and x-axis for each weisenberg number", action="store_true")
 
+    parser.add_argument("-d", "--distribution", help="Finds the distribution of angles and extension", action="store_true")
+
     args = parser.parse_args()
     # print args.echo
     if args.walk:
@@ -413,3 +459,5 @@ if __name__ == "__main__":
         average_sepparation()
     if args.angle:
         angle()
+    if args.distribution:
+        distribution()
