@@ -332,21 +332,29 @@ def distribution():
         for w in d_constant:
 
             comb_file = open("Comb.ext_Wi{}_chi{}_ts{}_step{}".format(w,x,time_step,steps),"w")
-            comb_angle = open("Comb.ang_Wi{}_chi{}_ts{}_step{}".format(w,x,time_step,steps),"w")
-
+            comb_th = open("Comb.th_Wi{}_chi{}_sp_ts{}_step{}".format(w, x,  time_step, steps), "w")
+            comb_ph = open("Comb.ph_Wi{}_chi{}_sp_ts{}_step{}".format(w, x,  time_step, steps), "w")
             for i in range(runs):
                 file = np.loadtxt("Run{}_Wi{}_chi{}".format(i, w, x))
                 polymag1 = file[:,4]
+                polymag1xy = np.sqrt(np.square(file[:, 1]) + np.square(file[:, 2]))
+
                 polyvec1x = file[:,1]
-                angle1 = np.degrees(
-                    np.arccos(np.clip(polyvec1x / polymag1, -1.0, 1.0)))
+
+                angleth = np.degrees(
+                    np.arccos(np.clip(polymag1xy / polymag1, -1.0, 1.0)))
+                angleph = np.degrees(
+                    np.arccos(np.clip(polyvec1x / polymag1xy, -1.0, 1.0)))
 
                 comb_file.write("\n".join(map(str,polymag1)))
                 comb_file.write("\n")
-                comb_angle.write("\n".join(map(str, angle1)))
-                comb_angle.write("\n")
+                comb_th.write("\n".join(map(str, angleth)))
+                comb_th.write("\n")
+                comb_ph.write("\n".join(map(str, angleph)))
+                comb_ph.write("\n")
             comb_file.close()
-            comb_angle.close()
+            comb_th.close()
+            comb_ph.close()
 
     os.chdir("..")
 
